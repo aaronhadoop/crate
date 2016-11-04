@@ -35,6 +35,8 @@ import java.util.TreeSet;
 
 final class LuceneVersionChecks {
 
+    private static final Version LAST_COMPATIBLE_VERSION = Version.LUCENE_5_0_0;
+
     static boolean isUpgradeRequired(@Nullable String versionStr) {
         if (versionStr == null || versionStr.isEmpty()) {
             return false;
@@ -51,7 +53,7 @@ final class LuceneVersionChecks {
     // minimumCompatVersion cannot be used to indicate that a table recreation is needed.
     static boolean isRecreationRequired(IndexMetaData indexMetaData) {
         return indexMetaData != null &&
-               !indexMetaData.getCreationVersion().luceneVersion.onOrAfter(Version.LUCENE_4_10_0);
+               !indexMetaData.getCreationVersion().luceneVersion.onOrAfter(LAST_COMPATIBLE_VERSION);
     }
 
     /**
