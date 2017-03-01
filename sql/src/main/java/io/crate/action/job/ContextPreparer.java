@@ -33,7 +33,10 @@ import io.crate.Streamer;
 import io.crate.analyze.EvaluatingNormalizer;
 import io.crate.breaker.CrateCircuitBreakerService;
 import io.crate.breaker.RamAccountingContext;
+import io.crate.concurrent.CompletionListenable;
+import io.crate.data.BatchConsumer;
 import io.crate.data.Bucket;
+import io.crate.data.Killable;
 import io.crate.data.Row;
 import io.crate.executor.transport.TransportActionProvider;
 import io.crate.executor.transport.distributed.SingleBucketBuilder;
@@ -579,18 +582,15 @@ public class ContextPreparer extends AbstractComponent {
             Predicate<Row> joinCondition = RowFilter.create(inputFactory, phase.joinCondition());
 
             NestedLoopOperation nestedLoopOperation = new NestedLoopOperation(
-                phase.phaseId(),
-                firstRR,
-                joinCondition,
-                phase.joinType(),
-                phase.numLeftOutputs(),
-                phase.numRightOutputs());
+                new BatchConsumerToRowReceiver(firstRR)
+            );
             PageDownstreamContext left = pageDownstreamContextForNestedLoop(
                 phase.phaseId(),
                 context,
                 (byte) 0,
                 phase.leftMergePhase(),
-                nestedLoopOperation.leftRowReceiver(),
+                nestedLoopOperation.leftConsumer(),
+                firstRR,
                 ramAccountingContext);
             if (left != null) {
                 context.registerSubContext(left);
@@ -600,7 +600,8 @@ public class ContextPreparer extends AbstractComponent {
                 context,
                 (byte) 1,
                 phase.rightMergePhase(),
-                nestedLoopOperation.rightRowReceiver(),
+                nestedLoopOperation.rightConsumer(),
+                firstRR,
                 ramAccountingContext
             );
             if (right != null) {
@@ -609,6 +610,7 @@ public class ContextPreparer extends AbstractComponent {
             context.registerSubContext(new NestedLoopContext(
                 nlContextLogger,
                 phase,
+                firstRR,
                 nestedLoopOperation,
                 left,
                 right
@@ -621,22 +623,20 @@ public class ContextPreparer extends AbstractComponent {
                                                                          PreparerContext ctx,
                                                                          byte inputId,
                                                                          @Nullable MergePhase mergePhase,
-                                                                         RowReceiver downstream,
+                                                                         BatchConsumer consumer,
+                                                                         Killable killable,
                                                                          RamAccountingContext ramAccountingContext) {
             if (mergePhase == null) {
-                ctx.phaseIdToRowReceivers.put(toKey(nlPhaseId, inputId), downstream);
+                // ctx.phaseIdToRowReceivers.put(toKey(nlPhaseId, inputId), downstream);
                 return null;
             }
-            downstream = ProjectorChain.prependProjectors(
-                downstream, mergePhase.projections(), mergePhase.jobId(), ramAccountingContext, projectorFactory);
-            BatchConsumerToRowReceiver batchConsumer = new BatchConsumerToRowReceiver(downstream);
             return new PageDownstreamContext(
                 pageDownstreamContextLogger,
                 nodeName(),
                 mergePhase.phaseId(),
                 mergePhase.name(),
-                batchConsumer,
-                downstream,
+                consumer,
+                killable,
                 PagingIterators.create(mergePhase.numUpstreams(), true, mergePhase.orderByPositions()),
                 StreamerVisitor.streamersFromOutputs(mergePhase),
                 ramAccountingContext,

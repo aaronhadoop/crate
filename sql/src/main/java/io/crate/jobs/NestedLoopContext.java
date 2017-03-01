@@ -21,6 +21,7 @@
 
 package io.crate.jobs;
 
+import io.crate.concurrent.CompletionListenable;
 import io.crate.operation.join.NestedLoopOperation;
 import io.crate.operation.projectors.RowReceiver;
 import io.crate.planner.node.dql.join.NestedLoopPhase;
@@ -36,11 +37,10 @@ public class NestedLoopContext extends AbstractExecutionSubContext implements Do
     private final PageBucketReceiver leftBucketReceiver;
     @Nullable
     private final PageBucketReceiver rightBucketReceiver;
-    private final RowReceiver leftRowReceiver;
-    private final RowReceiver rightRowReceiver;
 
     public NestedLoopContext(ESLogger logger,
                              NestedLoopPhase nestedLoopPhase,
+                             CompletionListenable completionListenable,
                              NestedLoopOperation nestedLoopOperation,
                              @Nullable PageBucketReceiver leftBucketReceiver,
                              @Nullable PageBucketReceiver rightBucketReceiver) {
@@ -50,6 +50,9 @@ public class NestedLoopContext extends AbstractExecutionSubContext implements Do
         this.leftBucketReceiver = leftBucketReceiver;
         this.rightBucketReceiver = rightBucketReceiver;
 
+        completionListenable.completionFuture().whenComplete((result, failure) -> future.close(failure));
+
+        /*
         leftRowReceiver = nestedLoopOperation.leftRowReceiver();
         rightRowReceiver = nestedLoopOperation.rightRowReceiver();
 
@@ -60,6 +63,7 @@ public class NestedLoopContext extends AbstractExecutionSubContext implements Do
                 future.close(t);
             }
         });
+        */
     }
 
     @Override
@@ -74,8 +78,10 @@ public class NestedLoopContext extends AbstractExecutionSubContext implements Do
 
     @Override
     protected void innerClose(@Nullable Throwable t) {
+        /*
         closeReceiver(t, leftBucketReceiver, leftRowReceiver);
         closeReceiver(t, rightBucketReceiver, rightRowReceiver);
+        */
     }
 
     private static void closeReceiver(@Nullable Throwable t, @Nullable PageBucketReceiver subContext, RowReceiver rowReceiver) {
@@ -86,8 +92,10 @@ public class NestedLoopContext extends AbstractExecutionSubContext implements Do
 
     @Override
     protected void innerKill(@Nullable Throwable t) {
+        /*
         killReceiver(t, leftBucketReceiver, leftRowReceiver);
         killReceiver(t, rightBucketReceiver, rightRowReceiver);
+        */
     }
 
     private static void killReceiver(Throwable t, @Nullable PageBucketReceiver subContext, RowReceiver rowReceiver) {
