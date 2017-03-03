@@ -33,6 +33,7 @@ import io.crate.jobs.JobContextService;
 import io.crate.jobs.JobModule;
 import io.crate.jobs.transport.NodeDisconnectJobMonitorService;
 import io.crate.lucene.CrateIndexModule;
+import io.crate.metadata.IndexVersionListener;
 import io.crate.metadata.MetaDataModule;
 import io.crate.metadata.Schemas;
 import io.crate.metadata.blob.MetaDataBlobModule;
@@ -113,7 +114,8 @@ public class SQLPlugin extends Plugin {
             PostgresNetty.class,
             JobContextService.class,
             Schemas.class,
-            SysRepositoriesService.class);
+            SysRepositoriesService.class,
+            IndexVersionListener.class);
     }
 
     @Override

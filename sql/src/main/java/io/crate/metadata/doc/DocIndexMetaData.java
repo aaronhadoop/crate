@@ -109,7 +109,7 @@ public class DocIndexMetaData {
         Settings settings = metaData.getSettings();
         this.numberOfReplicas = NumberOfReplicas.fromSettings(settings);
         this.aliases = ImmutableSet.copyOf(metaData.getAliases().keys().toArray(String.class));
-        this.defaultMappingMetaData = this.metaData.mappingOrDefault(Constants.DEFAULT_MAPPING_TYPE);
+        this.defaultMappingMetaData = getMappingMetaData(metaData);
         if (defaultMappingMetaData == null) {
             this.defaultMappingMap = ImmutableMap.of();
         } else {
@@ -126,6 +126,10 @@ public class DocIndexMetaData {
         } else {
             supportedOperations = Operation.buildFromIndexSettings(metaData.getSettings());
         }
+    }
+
+    public static MappingMetaData getMappingMetaData(IndexMetaData metaData) {
+        return metaData.mappingOrDefault(Constants.DEFAULT_MAPPING_TYPE);
     }
 
     @SuppressWarnings("unchecked")
@@ -404,6 +408,14 @@ public class DocIndexMetaData {
             }
         }
         return ImmutableList.of();
+    }
+
+    public static String getRoutingHashFunction(Map<String, Object> defaultMappingMap) {
+        Map<String, Object> metaMap = getNested(defaultMappingMap, "_meta");
+        if (metaMap == null) {
+            return null;
+        }
+        return getNested(metaMap, "routing_hash_algorithm");
     }
 
     private ImmutableList<ColumnIdent> getPartitionedBy() {
